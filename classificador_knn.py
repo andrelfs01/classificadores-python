@@ -1,16 +1,24 @@
 import pandas as pd
 from sklearn.utils import shuffle
+import sys
 
-#DMM CLASSIFICADOR USANDO A MENOR DISTANCIA DO PADRAO ATE OS PONTOS MÉDIOS DAS POSSIVEIS CLASSES 
-def dmm(prototipos, dataTeste):
+#KNN CLASSIFICADOR KESIMO VIZINHOS MAIS PROXIMOS E VOTAÇÃO 
+def knn(dataTreino, dataTeste, K):
     for i in dataTeste.index:
-        distance = -1
-        for c in prototipos.index:
-            r = distancia_quadrada(prototipos.loc[c],dataTeste.loc[i])
-            if (distance == -1 or r < distance):
-                dataTeste.loc[i, 'classified'] = c
-                distance = distancia_quadrada(prototipos.loc[c], dataTeste.loc[i])
+        lista_votacao = []
+        for c in dataTreino.index:
+            lista_votacao.append((dataTreino.loc[c]['class'] ,distancia_quadrada(dataTreino.loc[c],dataTeste.loc[i])))
+            lista_votacao.sort(key=lambda x: x[1])
+            lista_votacao = lista_votacao[:int(K)]
+            #print(lista_votacao)
+            dataTeste.loc[i, 'classified'] = resultado_votacao(lista_votacao)
     return dataTeste
+
+#FUNCAO QUE REALIZA A VOTACAO 
+def resultado_votacao(lista):
+    lista = list(map(lambda x:x[0],lista))
+    return (max(set(lista), key = lista.count) )
+    
 
 #CALCULO DE DISTANCIA QUANDRADA ENTRE DOIS PADROES
 def distancia_quadrada(a, b):
@@ -54,30 +62,28 @@ def get_confusion_matrix(data, expected, classified):
     return result
 
 #EXECUTA VALIDACAO - CROSS VALIDACAO EM 5 FOLDS E MOSTRA AS MATRIZES E UMA MATRIZ DE MÉDIA 
-def cross_validation(df_treino):
+def cross_validation(df_treino, k):
     folds = kfold(df_treino, 5, 1 )
     all_matrix = []
     cont = 0
     for f in folds:
         treino, validacao = f
-        #Vetores prototipos de cada classe
-        prototipos = treino.groupby(treino['class']).mean()
-        result = dmm(prototipos, validacao)
+        result = knn(treino, validacao, k)
         matrix = get_confusion_matrix(result, 'class','classified')
         all_matrix.append(matrix)
         print("Fold {}:".format(cont))
         print(matrix)
         print("")
         cont+=1
-
+    
     mean_matrix = pd.concat(all_matrix).groupby(level=0).mean()
     print("Mean cross validation:")
     print(mean_matrix)
     print("")
 
-#TESTE DE MODELO APLICANDO O DMM
-def test_model(df_teste, prototypes):
-    result = dmm(prototypes, df_teste)
+#TESTE DE MODELO APLICANDO O KNN
+def test_model(df_treino, df_teste, k):
+    result = knn(df_treino, df_teste, k)
     matrix = get_confusion_matrix(result, 'class','classified')
     print("Test model result:")
     print(matrix)
@@ -88,6 +94,9 @@ def test_model(df_teste, prototypes):
 columns = ['sepal_length', 'sepal_width','petal_length','petal_width','class']
 df_treino = pd.read_csv('iris.data', names=columns)
 
+#define K
+k = sys.argv[1]
+
 df_teste = pd.DataFrame(columns=columns)
 for i in range(3):
     df_subset = df_treino.iloc[i*50:(i*50)+50].sample(frac=.3)
@@ -96,9 +105,10 @@ for i in range(3):
 df_treino = df_treino.drop(df_teste.index)
 
 #EXECUTA A CROSS VALIDACAO
-cross_validation(df_treino)
+cross_validation(df_treino, k)
 
-#CALCULA AS  MEDIAS PARA O TESTE DO MODELO
-prototipos = df_teste.groupby(df_teste['class']).mean()
 #EXECUTA TESTE DO MODELO
-test_model(df_teste, prototipos)
+test_model(df_treino, df_teste, k)
+
+
+
