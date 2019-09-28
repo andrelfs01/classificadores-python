@@ -8,9 +8,11 @@ def knn(dataTreino, dataTeste, K):
         lista_votacao = []
         for c in dataTreino.index:
             lista_votacao.append((dataTreino.loc[c]['class'] ,distancia_quadrada(dataTreino.loc[c],dataTeste.loc[i])))
+            #ordenam pela distancia
             lista_votacao.sort(key=lambda x: x[1])
+            #seleciona os K menores
             lista_votacao = lista_votacao[:int(K)]
-            #print(lista_votacao)
+            #votacao
             dataTeste.loc[i, 'classified'] = resultado_votacao(lista_votacao)
     return dataTeste
 
@@ -109,6 +111,3 @@ cross_validation(df_treino, k)
 
 #EXECUTA TESTE DO MODELO
 test_model(df_treino, df_teste, k)
-
-
-
